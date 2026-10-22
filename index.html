@@ -218,8 +218,8 @@ function tongueHit(){const tg=G.tg,K=G.zorp;
 function spitTo(col){const K=G.zorp,item=G.hold;G.hold=null;K.mouth=1;K.squash=1;SFX.ptoo();
  const bottom=G.B[col][G.B[col].length-1];const free=item.src===col&&!KC.compat(bottom,item);
  if(G.mode==='puzzle'){if(free)G.undo.pop();else G.moves++}
- const v=V.get(item.id)||newVis(item,K.x,GE.kY-52);v.x=K.x;v.y=GE.kY-52;v.vx=0;v.vy=0;v.grabbed=0;
- G.flights.push({cell:item,col,t:0,y0:GE.kY-52,x0:K.x,wait:0})}
+ const v=V.get(item.id)||newVis(item,zorpX(),GE.kY-52);v.x=zorpX();v.y=GE.kY-52;v.vx=0;v.vy=0;v.grabbed=0;
+ G.flights.push({cell:item,col,t:0,y0:GE.kY-52,x0:zorpX(),wait:0})}
 function arrive(f){const res=KC.spit(G.B,f.col,f.cell);const v=V.get(f.cell.id);
  if(res.kind==='stack'){SFX.stack();if(v){v.sx=1.25;v.sy=.75;v.vy=-200}const r=G.B[f.col].length-1;for(let i=0;i<G.B[f.col].length-1;i++){const w=V.get(G.B[f.col][i].id);if(w)w.vy-=60}}
  else{const ev=res.ev;const e=V.get(res.eater);SFX.gulp();if(v){v.eaten=res.eater;v.et=0}if(e){e.sx=1.35;e.sy=.72;e.open=1}
@@ -264,7 +264,7 @@ function undo(){if(!G||G.mode!=='puzzle'||!G.undo.length||busy()||(G.panel&&G.pa
 function hint(){if(!G||G.mode!=='puzzle'||busy()||G.panel)return;if(G.hold){G.hint={kind:'back',life:8};flash('Put it back first, then ask again.');return}
  if(G.think)return;const left=G.limit-G.moves,on=onPath(G.B,left);
  if(on){showHint({moves:on});return}
- G.hint=null;G.think={s:hintSearch(G.B,left,900000),k:KC.key(G.B),m:G.moves,t:0};G.toast={s:'🤔 Thinking…',t:99}}
+ G.hint=null;G.think={s:hintSearch(G.B,left,8000000),k:KC.key(G.B),m:G.moves,t:0};G.toast={s:'🤔 Thinking…',t:99}}
 // KCFIX1: hint target column is .to and the timer is .life (they used to share the key .t)
 function showHint(r){if(r.moves&&r.moves.length){const [f,t]=r.moves[0];G.hint={f,to:t,kind:'move',life:10,left:r.moves.length};flash('Hint: '+r.moves.length+' move'+(r.moves.length>1?'s':'')+' to go!');return}
  G.hint=null;const n=undoBack(),u=n>1?'Tap Undo '+n+' times':'Tap Undo once';
@@ -279,14 +279,19 @@ function hintMoves(){const left=G.limit-G.moves,on=onPath(G.B,left);if(on)return
 // depth-limited search with a memory of dead ends. step(ms) works for at most ms and returns null until it has an answer,
 // so the game keeps running while it thinks. {moves} = found, {proved} = truly no way out, {capped} = gave up (never claims "no way out").
 function hintSearch(B0,maxD,maxNodes){const fail=new Map();let nodes=0,done=null;
- const kids=B=>{const out=[],seen=new Set([KC.key(B)]);for(const [f,t] of KC.legal(B)){if(f===t)continue;const N=KC.clone(B);const r=KC.move(N,f,t);if(!r)continue;const k=KC.key(N);if(seen.has(k))continue;seen.add(k);out.push({f,t,N,k,n:KC.count(N),sc:(r.spit.kind==='eat'?2:0)+r.settle.popped})}out.sort((a,b)=>a.n-b.n||b.sc-a.sc);return out};
+ const kids=B=>{const out=[],seen=new Set([KC.key(B)]);for(const [f,t] of KC.legal(B)){const N=KC.clone(B);const r=KC.move(N,f,t);if(!r)continue;const k=KC.key(N);if(seen.has(k))continue;   /* same-column spits count when the alien eats (board changes); a free put-back leaves the key unchanged and is skipped here */
+ seen.add(k);out.push({f,t,N,k,n:KC.count(N),sc:(r.spit.kind==='eat'?2:0)+r.settle.popped})}out.sort((a,b)=>a.n-b.n||b.sc-a.sc);return out};
+ const fin=B=>{for(const [f,t] of KC.legal(B)){nodes++;const cf=B[f],it=cf[cf.length-1],ct=B[t],e=f===t?ct[ct.length-2]:ct[ct.length-1];if(!KC.compat(e,it))continue;   // only a move where the alien eats can pop anything
+  const N=KC.clone(B);if(KC.move(N,f,t)&&KC.count(N)===0)return[f,t]}return null};
  if(KC.count(B0)===0)done={moves:[]};if(!done&&maxD<=0)done={moves:null,proved:true};
  const st=done?[]:[{B:KC.clone(B0),k:KC.key(B0),ch:null,i:0,d:0}],path=[];
  function step(ms){const t0=performance.now();
   while(!done){if(!st.length){done={moves:null,proved:true};break}
    if(nodes>maxNodes){done={moves:null,capped:true};break}
    if(performance.now()-t0>ms)return null;
-   const fr=st[st.length-1];if(!fr.ch){fr.ch=kids(fr.B);nodes+=fr.ch.length}
+   const fr=st[st.length-1];
+   if(fr.d===maxD-1){const w=fin(fr.B);if(w){path.push(w);done={moves:path.slice()};break}fail.set(fr.k,1);st.pop();path.pop();continue}   // last move: just look for one that clears the board (no keys/sorting)
+   if(!fr.ch){fr.ch=kids(fr.B);nodes+=fr.ch.length}
    if(fr.i>=fr.ch.length){fail.set(fr.k,maxD-fr.d);st.pop();path.pop();continue}
    const c=fr.ch[fr.i++];
    if(c.n===0){path.push([c.f,c.t]);done={moves:path.slice()};break}
@@ -303,7 +308,7 @@ function updateGame(dt){const K=G.zorp;G.t+=dt;
  if(G.panel){G.panelT+=dt;return}
  if(G.toast){G.toast.t-=dt;if(G.toast.t<=0)G.toast=null}
  if(G.hint){G.hint.life-=dt;if(G.hint.life<=0)G.hint=null}
- if(G.think){const T=G.think;if(KC.key(G.B)!==T.k||G.moves!==T.m||G.hold){G.think=null;if(G.toast&&G.toast.t>50)G.toast=null}else{T.t+=dt;let r=T.s.step(9);if(!r&&T.t>6)r={moves:null,capped:true};if(r){G.think=null;G.toast=null;showHint(r)}}}
+ if(G.think){const T=G.think;if(KC.key(G.B)!==T.k||G.moves!==T.m||G.hold){G.think=null;if(G.toast&&G.toast.t>50)G.toast=null}else{T.t+=dt;let r=T.s.step(9);if(!r&&T.t>15)r={moves:null,capped:true};if(r){G.think=null;G.toast=null;showHint(r)}}}
  G.tipT+=dt;
  // tongue
  const tg=G.tg;if(tg){tg.t+=dt;if(tg.phase==='out'){const p=Math.min(1,tg.t/tg.dur);tg.len=ease.out(p);if(p>=1){tongueHit();tg.phase='back';tg.t=0;tg.dur=tg.res==='ok'?.10:tg.res==='empty'?.07:.12}}
@@ -335,7 +340,7 @@ function spawnGems(x,y,n,ci){for(let i=0;i<n;i++){const a=rand(-2.6,-.5),s=rand(
 let gemK=0,gemKT=0;
 function updFx(dt){for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.t+=dt;if(p.t>=p.life){parts.splice(i,1);continue}p.vy+=p.g*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=1-dt*1.5;if(p.rot!=null)p.rot+=dt*6}
  gemKT-=dt;if(gemKT<0)gemK=0;
- if(!G)return;const K=G.zorp,mx=K.x,my=GE.kY-50;
+ if(!G)return;const K=G.zorp,mx=zorpX(),my=GE.kY-50;
  for(let i=gems.length-1;i>=0;i--){const g=gems[i];g.t+=dt;g.rot+=dt*5;if(g.t<.32){g.vy+=500*dt;g.x+=g.vx*dt;g.y+=g.vy*dt}else{const dx=mx-g.x,dy=my-g.y,d=Math.hypot(dx,dy)||1;const sp=380+(g.t-.32)*1800;g.vx=lerp(g.vx,dx/d*sp,Math.min(1,dt*10));g.vy=lerp(g.vy,dy/d*sp,Math.min(1,dt*10));g.x+=g.vx*dt;g.y+=g.vy*dt;
    if(d<18||g.t>2.5){gems.splice(i,1);G.gemsN++;G.score+=5;SFX.gem(gemK++);gemKT=.4;K.mouth=Math.max(K.mouth,.6);parts.push({x:mx,y:my,vx:0,vy:0,g:0,life:.18,t:0,r:10,c:'#fff7b0',ty:'ring'})}}}}
 function addLabel(s,x,y,col,size,float=false){labels.push({s,x,y,col,size,t:0,life:float?1.0:1.3,float,off:null});if(labels.length>8)labels.shift()}
@@ -438,12 +443,14 @@ function drawZorp(x,y,sc){const K=G?G.zorp:{mouth:0,hop:0,squash:0,emo:'',blinkT
  if(K.emo==='worried'){X.fillStyle='rgba(160,255,200,.9)';X.beginPath();X.ellipse(22,-58,3,5,0,0,6.283);X.fill()}
  if(K.stun>0){for(let i=0;i<3;i++){const a=RT*6+i*2.1;X.fillStyle='#ffe14d';starPath(Math.cos(a)*24,-84+Math.sin(a)*5,5,2,5);X.fill()}}
  X.restore()}
-function drawTongue(){const tg=G.tg;if(!tg)return;const K=G.zorp,sc=kSc();const mx=K.x,my=GE.kY-38*sc;const tx=colX(tg.col),ty=lerp(my,tg.ty+(tg.res==='ok'?radius(tg.cell)*.2:0),tg.len);
+function drawTongue(){const tg=G.tg;if(!tg)return;const K=G.zorp,sc=kSc();const mx=zorpX(),my=GE.kY-38*sc;const tx=colX(tg.col),ty=lerp(my,tg.ty+(tg.res==='ok'?radius(tg.cell)*.2:0),tg.len);
  const w=lerp(11,6,tg.len)*sc;const cx=(mx+tx)/2+Math.sin(RT*40)*1.5*tg.len,cy=(my+ty)/2;
  X.lineCap='round';X.strokeStyle='#178a3a';X.lineWidth=w+3;X.beginPath();X.moveTo(mx,my);X.quadraticCurveTo(cx,cy,tx,ty);X.stroke();X.strokeStyle='#7dff5a';X.lineWidth=w;X.stroke();X.strokeStyle='rgba(255,255,255,.35)';X.lineWidth=w*.3;X.stroke();
  X.fillStyle='#7dff5a';X.beginPath();X.arc(tx,ty,w*.95+2,0,6.283);X.fill();X.strokeStyle='#178a3a';X.lineWidth=2;X.stroke();
  if(tg.cell){const v=V.get(tg.cell.id);if(v){if(tg.phase==='back'){v.x=tx;v.y=ty-radius(tg.cell)*.4}drawAlien(tg.cell,v.x,v.y,radius(tg.cell),v)}}}
 const kSc=()=>clamp(GE.base/52,.8,1.12);
+// Zorp's drawn x, kept inside the screen so the saucer is never cut off on wide boards (column 0 / last column)
+function zorpX(){const s=SB(),h=50*kSc();return clamp(G.zorp.x,s.l+h,Math.max(s.l+h,s.r-h))}
 // ===================== backgrounds =====================
 let bgCache=null,bgKey='';
 const BIOMES=[{n:'Neon District',sky:['#0a0320','#5a1070','#ff3d8b'],n1:'#ff2bd6',n2:'#22f3ff',sun:['#ffe02e','#ff2f7d']},{n:'Acid Docks',sky:['#020c14','#0a4a4a','#3dffb0'],n1:'#5dff4a',n2:'#ff2bd6',sun:['#c4ffb0','#22d3ff']},{n:'Sunset Grid',sky:['#12021e','#7a1a4a','#ff8a3d'],n1:'#ffe02e',n2:'#ff2f7d',sun:['#fff6a8','#ff3d3d']},{n:'Robot Core',sky:['#05031a','#2a1070','#7a5cff'],n1:'#22f3ff',n2:'#b45cff',sun:['#e0c0ff','#22d3ff']},{n:'Mothership',sky:['#000008','#1a0a3a','#b45cff'],n1:'#ff2bd6',n2:'#5dff4a',sun:null}];
@@ -512,9 +519,9 @@ function drawWorld(){const s=GE.s;const sh=G.shake>.3?G.shake:0;X.save();X.trans
  // flights
  for(const f of G.flights){const p=clamp(f.t/(f.dur||.1),0,1),e=ease.out(p);const v=V.get(f.cell.id);if(!v)continue;v.x=lerp(f.x0,colX(f.col),e);v.y=lerp(f.y0,f.ty||f.y0,e);const R=radius(f.cell);X.globalAlpha=.25;for(let i=1;i<4;i++)drawAlien(f.cell,v.x,v.y+i*R*.5,R*(1-i*.15),{sx:.8,sy:1.2,open:0,blink:9,ph:0,x:v.x});X.globalAlpha=1;drawAlien(f.cell,v.x,v.y,R,{sx:.85,sy:1.25,open:0,blink:9,ph:v.ph,x:v.x})}
  // Zorp + tongue + held
- const sc=kSc();drawTongue();drawZorp(G.zorp.x,GE.kY,sc);
- if(G.hold){const v=V.get(G.hold.id)||newVis(G.hold,G.zorp.x,GE.kY);const R=radius(G.hold)*.78;v.x=G.zorp.x;v.y=GE.kY-(76+Math.sin(RT*5)*1.5)*sc-R*.9;drawAlien(G.hold,v.x,v.y,R,v)}
- if(G.burpFx){X.globalAlpha=G.burpFx*.6;for(let i=0;i<7;i++){X.fillStyle=`hsl(${i*50+RT*200},90%,60%)`;X.beginPath();X.arc(G.zorp.x+Math.sin(i)*40,GE.kY-60-(1-G.burpFx)*400-i*24,22-i*2,0,6.283);X.fill()}X.globalAlpha=1}
+ const sc=kSc();drawTongue();drawZorp(zorpX(),GE.kY,sc);
+ if(G.hold){const v=V.get(G.hold.id)||newVis(G.hold,zorpX(),GE.kY);const R=radius(G.hold)*.78;v.x=zorpX();v.y=GE.kY-(76+Math.sin(RT*5)*1.5)*sc-R*.9;drawAlien(G.hold,v.x,v.y,R,v)}
+ if(G.burpFx){X.globalAlpha=G.burpFx*.6;for(let i=0;i<7;i++){X.fillStyle=`hsl(${i*50+RT*200},90%,60%)`;X.beginPath();X.arc(zorpX()+Math.sin(i)*40,GE.kY-60-(1-G.burpFx)*400-i*24,22-i*2,0,6.283);X.fill()}X.globalAlpha=1}
  drawFx();X.restore()}
 // ===================== labels (placed so they never overlap) =====================
 function textW(s,px){X.font=FONT(px);return X.measureText(s).width}
@@ -607,7 +614,8 @@ function drawTitle(){const s=SB();menuBtns=[];
  const tot=save.stars.reduce((a,b)=>a+(b||0),0);
  button('puzzles',bx,by+bh+gap,bw,bh,'🧩 Puzzles',()=>{state='levels'},{col:['#ffd84d','#ff9f1c'],sub:tot+' / '+PUZ.length*3+' stars'});
  button('how',bx,by+(bh+gap)*2,bw,bh,'❓ How to Play',()=>{howFrom='title';howPage=0;state='howto'},{col:['#8fd6ff','#3a8fe0']});
- reg('foot',(s.l+s.r)/2-130,s.b-26,260,22);menuBtns.push({k:'foot',x:(s.l+s.r)/2-130,y:s.b-26,w:260,h:22,fn:()=>{},dis:true});X.font=FONT(16,800);X.fillStyle='rgba(255,255,255,.85)';X.textAlign='center';X.textBaseline='middle';X.fillText("A Peter's Arcade original",(s.l+s.r)/2,s.b-15);
+ const fh=Math.ceil(45/SC);reg('foot',(s.l+s.r)/2-130,s.b-24-fh/2,260,fh);menuBtns.push({k:'foot',x:(s.l+s.r)/2-130,y:s.b-24-fh/2,w:260,h:fh,fn:()=>{},dis:true});   // footer tap area >=44 CSS px at any scale
+ X.font=FONT(16,800);X.fillStyle='rgba(255,255,255,.85)';X.textAlign='center';X.textBaseline='middle';X.fillText("A Peter's Arcade original",(s.l+s.r)/2,s.b-24);
  button('mute',s.r-6-TS,s.t+6,TS,TS,'',toggleMute,{icon:iconSound(!save.muted),col:['#8fd6ff','#3a8fe0']})}
 function lockedUpTo(){let n=1;for(let i=0;i<PUZ.length;i++)if(save.stars[i])n=i+2;return Math.min(PUZ.length,Math.max(n,5))}
 function drawLevels(){const s=SB();menuBtns=[];button('back',s.l+8,s.t+6,96,TS,'◀ Back',toTitle,{col:['#ff9ad0','#d4479a'],px:17});topRight(s,false);
