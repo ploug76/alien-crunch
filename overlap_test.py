@@ -14,7 +14,7 @@ CHECK=r'''(tag)=>{const L=__T.layout(),E=L.els,S=L.SAFE,bad=[];const o=(a,b)=>a.
  return bad}'''
 ENDLESS=r'''async (secs)=>{const T=__T;T.start('endless');window.__BOT=1;const bad=[];let f=0;const CH=window.__CHECK;
  for(let i=0;i<secs*60;i++){T.step(1);f++;const G=T.G;if(!G)break;
-  if(i%97===0)T.announce(['Super Crunch!','Food Chain!','ALIEN CRUNCH!!','Level 9!  Faster vines!'][i%4],1+i%7);
+  if(i%97===0)T.announce(['Super Crunch!','Food Chain!','FEEDING FRENZY!!','Level 9!  Faster vines!'][i%4],1+i%7);
   if(i%13===0)T.label('+'+(i*7),40+Math.random()*320,200+Math.random()*400);
   if(i%3===0){const b=CH('endless');if(b.length)bad.push(...b.slice(0,3))}
   if(G.panel==='over'){bad.push(...CH('over'));break}}
