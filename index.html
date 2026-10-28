@@ -316,7 +316,7 @@ function updateGame(dt){const K=G.zorp;G.t+=dt;
  if(G.panel){G.panelT+=dt;return}
  if(G.toast){G.toast.t-=dt;if(G.toast.t<=0)G.toast=null}
  if(G.hint){G.hint.life-=dt;if(G.hint.life<=0)G.hint=null}
- if(G.think){const T=G.think;if(KC.key(G.B)!==T.k||G.moves!==T.m||G.hold){G.think=null;if(G.toast&&G.toast.t>50)G.toast=null}else{T.t+=dt;let r=T.s.step(9);if(!r&&T.t>15)r={moves:null,capped:true};if(r){G.think=null;G.toast=null;showHint(r)}}}
+ if(G.think){const T=G.think;if(KC.key(G.B)!==T.k||G.moves!==T.m||G.hold){G.think=null;if(G.toast&&G.toast.t>50)G.toast=null}else{T.t+=dt;const bud=Math.max(9,Math.min(30,dt*550));let r=T.s.step(bud);if(!r&&T.t>60)r={moves:null,capped:true};/* v7: the search's own node cap decides; bigger slices on slow frames, 60 s safety net (was a 15 s cap) */if(r){G.think=null;G.toast=null;showHint(r)}}}
  G.tipT+=dt;
  // tongue
  const tg=G.tg;if(tg){tg.t+=dt;if(tg.phase==='out'){const p=Math.min(1,tg.t/tg.dur);tg.len=ease.out(p);if(p>=1){tongueHit();tg.phase='back';tg.t=0;tg.dur=tg.res==='ok'?.10:tg.res==='empty'?.07:.12}}
@@ -622,7 +622,7 @@ function drawTitle(){const s=SB();menuBtns=[];
  const tot=save.stars.reduce((a,b)=>a+(b||0),0);
  button('puzzles',bx,by+bh+gap,bw,bh,'🧩 Puzzles',()=>{state='levels'},{col:['#ffd84d','#ff9f1c'],sub:tot+' / '+PUZ.length*3+' stars'});
  button('how',bx,by+(bh+gap)*2,bw,bh,'❓ How to Play',()=>{howFrom='title';howPage=0;state='howto'},{col:['#8fd6ff','#3a8fe0']});
- const fh=Math.ceil(45/SC);reg('foot',(s.l+s.r)/2-130,s.b-24-fh/2,260,fh);menuBtns.push({k:'foot',x:(s.l+s.r)/2-130,y:s.b-24-fh/2,w:260,h:fh,fn:()=>{},dis:true});   // footer tap area >=44 CSS px at any scale
+ const fh=Math.ceil(45/SC),fy=Math.max(s.b-24-fh/2,by+(bh+gap)*2+bh+2);reg('foot',(s.l+s.r)/2-130,fy,260,fh);menuBtns.push({k:'foot',x:(s.l+s.r)/2-130,y:fy,w:260,h:fh,fn:()=>{},dis:true});   // footer tap area >=44 CSS px at any scale
  X.font=FONT(16,800);X.fillStyle='rgba(255,255,255,.85)';X.textAlign='center';X.textBaseline='middle';X.fillText("A Peter's Arcade original",(s.l+s.r)/2,s.b-24);
  button('mute',s.r-6-TS,s.t+6,TS,TS,'',toggleMute,{icon:iconSound(!save.muted),col:['#8fd6ff','#3a8fe0']})}
 function lockedUpTo(){let n=1;for(let i=0;i<PUZ.length;i++)if(save.stars[i])n=i+2;return Math.min(PUZ.length,Math.max(n,5))}
