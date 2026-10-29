@@ -642,7 +642,7 @@ function drawLevels(){const s=SB();menuBtns=[];button('back',s.l+8,s.t+6,96,TS,'
  const cols=5,gap=10;const cw=Math.min(66,(s.r-s.l-24-gap*4)/cols);const rows=Math.ceil(PUZ.length/cols);const ch=Math.min(cw,(s.b-s.t-TS-32-gap*(rows-1))/rows);const x0=(s.l+s.r)/2-(cw*cols+gap*4)/2,y0=s.t+TS+16;const un=lockedUpTo();
  for(let i=0;i<PUZ.length;i++){const c=i%cols,r=Math.floor(i/cols);const x=x0+c*(cw+gap),y=y0+r*(ch+gap);const lock=i>=un;const st=save.stars[i]||0;const tier=Math.floor(i/5);const tc=[['#b6ff7a','#46b04a'],['#8fd6ff','#3a8fe0'],['#ffd84d','#ff9f1c'],['#d6b4ff','#8a4ae0'],['#ff9ad0','#d4479a'],['#ffb07a','#e0602e']][tier%6];
   button('lv'+i,x,y,cw,ch,lock?'🔒':''+(i+1),()=>{if(!lock)startGame('puzzle',i)},{dis:lock,col:tc,r:14,px:Math.min(22,ch*.36),icon:lock?null:(bx,byy)=>{outlined(''+(i+1),bx,byy-ch*.1,Math.min(22,ch*.36),'#fff','#3a1a4a',4);X.font=FONT(Math.min(13,ch*.22));X.textAlign='center';X.fillStyle=st?'#fff6a0':'rgba(40,20,60,.5)';X.fillText('★'.repeat(st)+'☆'.repeat(3-st),bx,byy+ch*.26)}})}}
-const HOW=[{t:'Meet Zorp!',d:'Swipe left or right to move Zorp between columns. Tap anywhere to shoot its tongue up and grab the bottom alien. Tap again to spit it into the column above her. (Keyboard: ← → move, Space shoots.)',art:'zorp'},
+const HOW=[{t:'Meet Zorp!',d:'Swipe left or right to move Zorp between columns. Tap anywhere to shoot its tongue up and grab the bottom alien. Tap again to spit it into the column above her. (Keyboard: ← → move, Space shoots. Controller: stick or D-pad moves, A shoots, X burp, Y hint, LB/B undo, Start pauses, Select mutes.)',art:'zorp'},
  {t:'Feed the Food Chain',d:'Blobs feed Tri-Zaps, and Tri-Zaps feed Brutes. Spit the wrong size and it just sticks on the bottom of the column.',art:'sizes'},
  {t:'Full Aliens Pop',d:'An alien that has eaten gets puffy cheeks: it is FULL. Feed it once more, or feed it to a bigger alien, and it POPS!',art:'full'},
  {t:'Chain Reactions',d:'A pop spreads to touching aliens of the same size AND color. Aliens below climb up, and if they climb into a bigger alien it eats them. That’s a combo!',art:'chain'},
@@ -818,4 +818,17 @@ window.__unlock={unlocked:un,sample:window.__SAMPLE||null,get badge(){return las
 #palbTabs button{min-height:48px!important;font-size:16px!important}
 #palbList li{min-height:30px;height:auto!important;font-size:16px!important}
 </style>
+<!-- gamepad:start -->
+<script src="gamepad.js?v=1"></script>
+<script>
+GamepadSupport.init({
+ keys:{left:'ArrowLeft',right:'ArrowRight',a:'Space',up:'Space',x:'KeyB',y:'KeyH',lb:'KeyZ',b:'KeyZ',start:'KeyP',back:'KeyM'},
+ noRepeat:['a','up','x','y','lb','b','start','back'],
+ ignoreSel:'#dock,#mute,#pause,#inst,#ios,.tb,#dockHint',
+ menu:function(){return !!document.querySelector('#palbOv.on,#smpLock.on')||state!=='play'||!G||paused||!!G.panel;},
+ items:GamepadSupport.list(function(){return document.querySelector('#palbOv.on,#smpLock.on')?[]:menuBtns;},{scale:function(){return SC},origin:function(){return [OXs,OYs]}}),
+ back:function(){if(document.querySelector('#palbOv.on,#smpLock.on'))return false;var b=menuBtns.filter(function(x){return /^(back|hx|x|close|resume)$/i.test(x.k)})[0];if(b&&!b.dis){b.fn();return true}return false;}
+});
+</script>
+<!-- gamepad:end -->
 </body></html>
